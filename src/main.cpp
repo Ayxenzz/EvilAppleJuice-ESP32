@@ -169,7 +169,7 @@ void loop() {
       setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS]); // This one seems the most spammy
       break;
     case LEFT_OFF_RIGHT_FLASH:
-    setRandomDeviceData(oAdvertisementData);
+      setRandomDeviceData(oAdvertisementData);
       break;
     case LEFT_OFF_RIGHT_ON:
       setAdvertisementData(oAdvertisementData, ALL_DEVICES[SOFTWARE_UPDATE]); // This is fairly spammy, not all phones
@@ -178,7 +178,7 @@ void loop() {
       setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS_GEN_2]); // TBD
       break;
     case LEFT_FLASH_RIGHT_FLASH:
-    setAdvertisementData(oAdvertisementData, ALL_DEVICES[VISION_PRO]); // THis one affects very few devices, not as spammy (but kinda fun)
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[VISION_PRO]); // THis one affects very few devices, not as spammy (but kinda fun)
       break;
     case LEFT_FLASH_RIGHT_ON:
       setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS_MAX]); // TBD
@@ -198,6 +198,12 @@ void loop() {
   }
 
   int adv_type_choice = random(3);
+  
+  // NimBLE safety check: ensure advertising is stopped before changing state parameters
+  if (pAdvertising->isAdvertising()) {
+    pAdvertising->stop();
+  }
+
   if (adv_type_choice == 0){
     pAdvertising->setAdvertisementType(ADV_TYPE_IND);
   } else if (adv_type_choice == 1){
@@ -206,18 +212,20 @@ void loop() {
     pAdvertising->setAdvertisementType(ADV_TYPE_NONCONN_IND);
   }
 
-  // Set the device address, advertisement data (with v3 compatibility)
-#if !(ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0))
-  pAdvertising->setDeviceAddress(dummy_addr, BLE_ADDR_TYPE_RANDOM);
-#endif
   pAdvertising->setAdvertisementData(oAdvertisementData);
 
-  // Start advertising
+  // Start advertising with version-appropriate arguments
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+  pAdvertising->start(0, 0);
+#else
   pAdvertising->start();
+#endif
 
   digitalWrite(LEFT_LED,  shouldBeLitOff(stateTable[currentMode][0]) ? LOW : HIGH);
   digitalWrite(RIGHT_LED, shouldBeLitOff(stateTable[currentMode][1]) ? LOW : HIGH);
+  
   delay(delayMilliseconds); // delay for delayMilliseconds ms
+  
   pAdvertising->stop();
 
   // Random signal strength increases the difficulty of tracking the signal
