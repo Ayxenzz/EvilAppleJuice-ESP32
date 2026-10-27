@@ -186,10 +186,10 @@ void loop() {
 
   int adv_type_choice = random(3);
   
-  // Safely stop and yield to NimBLE's asynchronous controller
+  // Robust NimBLE state stop with synchronization yield
   if (pAdvertising->isAdvertising()) {
     pAdvertising->stop();
-    delay(5);
+    delay(10); // Give the controller buffer time to clear
   }
 
   if (adv_type_choice == 0){
@@ -202,7 +202,7 @@ void loop() {
 
   pAdvertising->setAdvertisementData(oAdvertisementData);
 
-  // Start advertising
+  // Start advertising safely
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
   pAdvertising->start(0);
 #else
@@ -212,11 +212,11 @@ void loop() {
   digitalWrite(LEFT_LED,  shouldBeLitOff(stateTable[currentMode][0]) ? LOW : HIGH);
   digitalWrite(RIGHT_LED, shouldBeLitOff(stateTable[currentMode][1]) ? LOW : HIGH);
   
-  delay(delayMilliseconds); // delay for delayMilliseconds ms
+  delay(delayMilliseconds); // Broadcast duration window
   
   if (pAdvertising->isAdvertising()) {
     pAdvertising->stop();
-    delay(5);
+    delay(10);
   }
 
   // Random signal strength increases the difficulty of tracking the signal
