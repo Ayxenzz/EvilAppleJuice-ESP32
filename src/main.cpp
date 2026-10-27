@@ -36,7 +36,6 @@ uint32_t delayMilliseconds = 100;
 int currentMode = 0;
 Preferences preferences;
 
-// LEDs disabled to prevent conflicts on ESP32-C5 UART/USB pins
 // Boot button mapped to GPIO 28 (Standard ESP32-C5 DevKitC-1 onboard BOOT button)
 const int BOOT_BUTTON_PIN = 28;
 const unsigned long LONG_PRESS_TIME = 1000; // 1 second
@@ -65,7 +64,7 @@ void setup() {
   BLEServer *pServer = BLEDevice::createServer();
   pAdvertising = pServer->getAdvertising();
 
-  // Start continuous background advertising once in setup to avoid state collisions
+  // Start continuous background advertising once in setup
   pAdvertising->start();
 }
 
@@ -91,13 +90,8 @@ void setAdvertisementData(BLEAdvertisementData &oAdvertisementData, const AppleD
   generatePacket(dev, packet, packetLen);
   Serial.printf("Broadcasting %s (Length: %d)...\n", dev.name, packetLen);
 
-  #ifdef ESP_ARDUINO_VERSION_MAJOR
-    #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-        oAdvertisementData.addData(String((char*)packet, packetLen));
-    #else
-        oAdvertisementData.addData(std::string((char*)packet, packetLen));
-    #endif
-  #endif
+  // Use std::string to correctly handle raw binary data containing embedded null bytes (0x00)
+  oAdvertisementData.addData(std::string((char*)packet, packetLen));
 }
 
 void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
@@ -168,7 +162,16 @@ void loop() {
     pAdvertising->setAdvertisementType(ADV_TYPE_NONCONN_IND);
   }
 
-  // Update packet payload seamlessly without stopping the background stack
+  // Generate a random source MAC address on the fly to bypass iPhone anti-spam caching
+  esp_bd_addr_t random_addr = {
+    (uint8_t)random(0x00, 0xFF), (uint8_t)random(0x00, 0xFF),
+    (uint8_t)random(0x00, 0xFF), (uint8_t)random(0x00, 0xFF),
+    (uint8_t)random(0x00, 0xFF), (uint8_t)random(0x00, 0xFF)
+  };
+  random_addr[0] |= 0xC0; // Set random static bits
+  pAdvertising->setDeviceAddress(random_addr, BLE_ADDR_TYPE_RANDOM);
+
+  // Update packet payload seamlessly
   pAdvertising->setAdvertisementData(oAdvertisementData);
 
   delay(delayMilliseconds); // Rotate payload every 100ms
