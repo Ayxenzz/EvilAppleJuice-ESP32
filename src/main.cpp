@@ -13,9 +13,17 @@
 #include "devices.hpp"
 #include "led.hpp"
 
+// Compatibility layer for ESP32 Arduino v3.x and newer RISC-V targets
+#ifndef ADV_TYPE_IND
+#define ADV_TYPE_IND 0x00
+#define ADV_TYPE_DIRECT_IND_HIGH 0x01
+#define ADV_TYPE_SCAN_IND 0x02
+#define ADV_TYPE_NONCONN_IND 0x03
+#endif
+
 // Bluetooth maximum transmit power
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32S3)
-#define MAX_TX_POWER ESP_PWR_LVL_P21  // ESP32C3 ESP32C2 ESP32S3
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C5)
+#define MAX_TX_POWER ESP_PWR_LVL_P21  // ESP32C3 ESP32C2 ESP32S3 ESP32C5
 #elif defined(CONFIG_IDF_TARGET_ESP32H2) || defined(CONFIG_IDF_TARGET_ESP32C6)
 #define MAX_TX_POWER ESP_PWR_LVL_P20  // ESP32H2 ESP32C6
 #else
@@ -50,11 +58,10 @@ void setup() {
   pinMode(RIGHT_LED, OUTPUT);
   pinMode(LEFT_LED, OUTPUT);
   pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
-  
+
   BLEDevice::init("AirPods 69");
 
   // Increase the BLE Power to 21dBm (MAX)
-  // https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-reference/bluetooth/controller_vhci.html
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, MAX_TX_POWER);
 
   // Create the BLE Server
@@ -63,7 +70,11 @@ void setup() {
 
   // seems we need to init it with an address in setup() step.
   esp_bd_addr_t null_addr = {0xFE, 0xED, 0xC0, 0xFF, 0xEE, 0x69};
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+  pAdvertising->setPrivateAddress();
+#else
   pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
+#endif
 }
 
 void resetMode(){
@@ -188,19 +199,6 @@ void loop() {
       break;
   }
 
-  /*  Page 191 of Apple's "Accessory Design Guidelines for Apple Devices (Release R20)" recommends to use only one of
-      the three advertising PDU types when you want to connect to Apple devices.
-          // 0 = ADV_TYPE_IND, 
-          // 1 = ADV_TYPE_SCAN_IND
-          // 2 = ADV_TYPE_NONCONN_IND
-      
-      Randomly using any of these PDU types may increase detectability of spoofed packets. 
-
-      What we know for sure:
-      - AirPods Gen 2: this advertises ADV_TYPE_SCAN_IND packets when the lid is opened and ADV_TYPE_NONCONN_IND when in pairing mode (when the rear case btton is held).
-                        Consider using only these PDU types if you want to target Airpods Gen 2 specifically.
-  */
-  
   int adv_type_choice = random(3);
   if (adv_type_choice == 0){
     pAdvertising->setAdvertisementType(ADV_TYPE_IND);
@@ -210,21 +208,13 @@ void loop() {
     pAdvertising->setAdvertisementType(ADV_TYPE_NONCONN_IND);
   }
 
-  // Set the device address, advertisement data
+  // Set the device address, advertisement data (with v3 fallback)
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+  pAdvertising->setPrivateAddress();
+#else
   pAdvertising->setDeviceAddress(dummy_addr, BLE_ADDR_TYPE_RANDOM);
+#endif
   pAdvertising->setAdvertisementData(oAdvertisementData);
-  
-  // Set advertising interval
-  /*  According to Apple' Technical Q&A QA1931 (https://developer.apple.com/library/archive/qa/qa1931/_index.html), Apple recommends
-      an advertising interval of 20ms to developers who want to maximize the probability of their BLE accessories to be discovered by iOS.
-      
-      These lines of code fixes the interval to 20ms. Enabling these MIGHT increase the effectiveness of the DoS. Note this has not undergone thorough testing.
-  */
-
-  //pAdvertising->setMinInterval(0x20);
-  //pAdvertising->setMaxInterval(0x20);
-  //pAdvertising->setMinPreferred(0x20);
-  //pAdvertising->setMaxPreferred(0x20);
 
   // Start advertising
   pAdvertising->start();
