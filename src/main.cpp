@@ -22,10 +22,10 @@
 #endif
 
 // Bluetooth maximum transmit power
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C5)
-#define MAX_TX_POWER ESP_PWR_LVL_P21  // ESP32C3 ESP32C2 ESP32S3 ESP32C5
-#elif defined(CONFIG_IDF_TARGET_ESP32H2) || defined(CONFIG_IDF_TARGET_ESP32C6)
-#define MAX_TX_POWER ESP_PWR_LVL_P20  // ESP32H2 ESP32C6
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32S3)
+#define MAX_TX_POWER ESP_PWR_LVL_P21  // ESP32C3 ESP32C2 ESP32S3
+#elif defined(CONFIG_IDF_TARGET_ESP32H2) || defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32C5)
+#define MAX_TX_POWER ESP_PWR_LVL_P20  // ESP32H2 ESP32C6 ESP32C5
 #else
 #define MAX_TX_POWER ESP_PWR_LVL_P9   // Default
 #endif
@@ -61,7 +61,7 @@ void setup() {
 
   BLEDevice::init("AirPods 69");
 
-  // Increase the BLE Power to 21dBm (MAX)
+  // Increase the BLE Power to MAX
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, MAX_TX_POWER);
 
   // Create the BLE Server
@@ -71,7 +71,7 @@ void setup() {
   // seems we need to init it with an address in setup() step.
   esp_bd_addr_t null_addr = {0xFE, 0xED, 0xC0, 0xFF, 0xEE, 0x69};
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  pAdvertising->setPrivateAddress();
+  pAdvertising->setOwnAddressType(BLE_ADDR_TYPE_RANDOM);
 #else
   pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
 #endif
@@ -210,7 +210,7 @@ void loop() {
 
   // Set the device address, advertisement data (with v3 fallback)
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  pAdvertising->setPrivateAddress();
+  pAdvertising->setOwnAddressType(BLE_ADDR_TYPE_RANDOM);
 #else
   pAdvertising->setDeviceAddress(dummy_addr, BLE_ADDR_TYPE_RANDOM);
 #endif
