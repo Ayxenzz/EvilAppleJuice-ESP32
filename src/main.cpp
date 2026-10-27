@@ -70,9 +70,7 @@ void setup() {
 
   // seems we need to init it with an address in setup() step.
   esp_bd_addr_t null_addr = {0xFE, 0xED, 0xC0, 0xFF, 0xEE, 0x69};
-#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  pAdvertising->setOwnAddressType(BLE_ADDR_TYPE_RANDOM);
-#else
+#if !(ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0))
   pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
 #endif
 }
@@ -208,10 +206,8 @@ void loop() {
     pAdvertising->setAdvertisementType(ADV_TYPE_NONCONN_IND);
   }
 
-  // Set the device address, advertisement data (with v3 fallback)
-#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  pAdvertising->setOwnAddressType(BLE_ADDR_TYPE_RANDOM);
-#else
+  // Set the device address, advertisement data (with v3 compatibility)
+#if !(ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0))
   pAdvertising->setDeviceAddress(dummy_addr, BLE_ADDR_TYPE_RANDOM);
 #endif
   pAdvertising->setAdvertisementData(oAdvertisementData);
