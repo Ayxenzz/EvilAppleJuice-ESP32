@@ -149,19 +149,6 @@ void loop() {
     }
   }
 
-  // First generate fake random MAC
-  esp_bd_addr_t dummy_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  for (int i = 0; i < 6; i++){
-    dummy_addr[i] = random(256);
-
-    // It seems for some reason first 4 bits
-    // Need to be high (aka 0b1111), so we 
-    // OR with 0xF0
-    if (i == 0){
-      dummy_addr[i] |= 0xF0;
-    }
-  }
-
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
 
   switch (currentMode){
@@ -199,7 +186,7 @@ void loop() {
 
   int adv_type_choice = random(3);
   
-  // NimBLE safety check: ensure advertising is stopped before changing state parameters
+  // Safe stop check for NimBLE stack
   if (pAdvertising->isAdvertising()) {
     pAdvertising->stop();
   }
@@ -216,7 +203,7 @@ void loop() {
 
   // Start advertising with version-appropriate arguments
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  pAdvertising->start(0, 0);
+  pAdvertising->start(1, 0);
 #else
   pAdvertising->start();
 #endif
@@ -226,7 +213,9 @@ void loop() {
   
   delay(delayMilliseconds); // delay for delayMilliseconds ms
   
-  pAdvertising->stop();
+  if (pAdvertising->isAdvertising()) {
+    pAdvertising->stop();
+  }
 
   // Random signal strength increases the difficulty of tracking the signal
   int rand_val = random(100);  // Generate a random number between 0 and 99
