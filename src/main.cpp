@@ -90,8 +90,8 @@ void setAdvertisementData(BLEAdvertisementData &oAdvertisementData, const AppleD
   generatePacket(dev, packet, packetLen);
   Serial.printf("Broadcasting %s (Length: %d)...\n", dev.name, packetLen);
 
-  // Use std::string to correctly handle raw binary data containing embedded null bytes (0x00)
-  oAdvertisementData.addData(std::string((char*)packet, packetLen));
+  // Use the native two-argument signature matching framework-arduinoespressif32 v3.3.12
+  oAdvertisementData.addData((char*)packet, packetLen);
 }
 
 void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
@@ -162,16 +162,7 @@ void loop() {
     pAdvertising->setAdvertisementType(ADV_TYPE_NONCONN_IND);
   }
 
-  // Generate a random source MAC address on the fly to bypass iPhone anti-spam caching
-  esp_bd_addr_t random_addr = {
-    (uint8_t)random(0x00, 0xFF), (uint8_t)random(0x00, 0xFF),
-    (uint8_t)random(0x00, 0xFF), (uint8_t)random(0x00, 0xFF),
-    (uint8_t)random(0x00, 0xFF), (uint8_t)random(0x00, 0xFF)
-  };
-  random_addr[0] |= 0xC0; // Set random static bits
-  pAdvertising->setDeviceAddress(random_addr, BLE_ADDR_TYPE_RANDOM);
-
-  // Update packet payload seamlessly
+  // Update packet payload seamlessly in continuous background mode
   pAdvertising->setAdvertisementData(oAdvertisementData);
 
   delay(delayMilliseconds); // Rotate payload every 100ms
