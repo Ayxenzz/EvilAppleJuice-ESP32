@@ -186,9 +186,10 @@ void loop() {
 
   int adv_type_choice = random(3);
   
-  // Safe stop check for NimBLE stack
+  // Safely stop and yield to NimBLE's asynchronous controller
   if (pAdvertising->isAdvertising()) {
     pAdvertising->stop();
+    delay(5);
   }
 
   if (adv_type_choice == 0){
@@ -201,9 +202,9 @@ void loop() {
 
   pAdvertising->setAdvertisementData(oAdvertisementData);
 
-  // Start advertising with version-appropriate arguments
+  // Start advertising
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  pAdvertising->start(1, 0);
+  pAdvertising->start(0);
 #else
   pAdvertising->start();
 #endif
@@ -215,6 +216,7 @@ void loop() {
   
   if (pAdvertising->isAdvertising()) {
     pAdvertising->stop();
+    delay(5);
   }
 
   // Random signal strength increases the difficulty of tracking the signal
