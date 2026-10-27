@@ -1,4 +1,4 @@
-// This example takes heavy inpsiration from the ESP32 example by ronaldstoner
+// This example takes heavy inspiration from the ESP32 example by ronaldstoner
 // Based on the previous work of chipik / _hexway / ECTO-1A & SAY-10
 // See the README for more info
 #include <Arduino.h>
@@ -36,10 +36,10 @@ uint32_t delayMilliseconds = 100;
 int currentMode = 0;
 Preferences preferences;
 
-#define RIGHT_LED 12
-#define LEFT_LED 13
-const int BOOT_BUTTON_PIN = 9;
-const unsigned long LONG_PRESS_TIME = 1000; // 1 seconds
+// LEDs disabled to prevent conflicts on ESP32-C5 UART/USB pins
+// Boot button mapped to GPIO 28 (Standard ESP32-C5 DevKitC-1 onboard BOOT button)
+const int BOOT_BUTTON_PIN = 28;
+const unsigned long LONG_PRESS_TIME = 1000; // 1 second
 
 void setup() {
   Serial.begin(115200);
@@ -53,10 +53,7 @@ void setup() {
   Serial.printf("Current Mode: %d\n", currentMode);
   preferences.end();
 
-  // This is specific to the AirM2M ESP32 board
-  // https://wiki.luatos.com/chips/esp32c3/board.html
-  pinMode(RIGHT_LED, OUTPUT);
-  pinMode(LEFT_LED, OUTPUT);
+  // Configure Boot Button pin with internal pullup
   pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
 
   BLEDevice::init("AirPods 69");
@@ -110,28 +107,8 @@ void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
   setAdvertisementData(oAdvertisementData, dev);
 }
 
-bool shouldBeLitOn(LEDMode mode) {
-  switch (mode) {
-    case ON:    return true;
-    case OFF:   return false;
-    case FLASH: return true;
-    default:    return false;
-  }
-}
-
-bool shouldBeLitOff(LEDMode mode) {
-  switch (mode) {
-    case ON:    return false;
-    case OFF:   return true;
-    case FLASH: return true;
-    default:    return false;
-  }
-}
-
 void loop() {
-  digitalWrite(LEFT_LED,  shouldBeLitOn(stateTable[currentMode][0])  ? HIGH : LOW);
-  digitalWrite(RIGHT_LED, shouldBeLitOn(stateTable[currentMode][1]) ? HIGH : LOW);
-
+  // Check button press for mode switching and serial logging
   if (digitalRead(BOOT_BUTTON_PIN) == LOW) {
     unsigned long startTime = millis();
     while(digitalRead(BOOT_BUTTON_PIN) == LOW); 
@@ -194,9 +171,6 @@ void loop() {
   // Update packet payload seamlessly without stopping the background stack
   pAdvertising->setAdvertisementData(oAdvertisementData);
 
-  digitalWrite(LEFT_LED,  shouldBeLitOff(stateTable[currentMode][0]) ? LOW : HIGH);
-  digitalWrite(RIGHT_LED, shouldBeLitOff(stateTable[currentMode][1]) ? LOW : HIGH);
-  
   delay(delayMilliseconds); // Rotate payload every 100ms
 
   // Random signal strength variation
