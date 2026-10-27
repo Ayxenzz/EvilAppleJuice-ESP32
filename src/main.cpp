@@ -68,11 +68,8 @@ void setup() {
   BLEServer *pServer = BLEDevice::createServer();
   pAdvertising = pServer->getAdvertising();
 
-  // seems we need to init it with an address in setup() step.
-  esp_bd_addr_t null_addr = {0xFE, 0xED, 0xC0, 0xFF, 0xEE, 0x69};
-#if !(ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0))
-  pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
-#endif
+  // Start continuous background advertising once in setup to avoid state collisions
+  pAdvertising->start();
 }
 
 void resetMode(){
@@ -153,45 +150,39 @@ void loop() {
 
   switch (currentMode){
     case LEFT_OFF_RIGHT_OFF:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS]); // This one seems the most spammy
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS]); 
       break;
     case LEFT_OFF_RIGHT_FLASH:
       setRandomDeviceData(oAdvertisementData);
       break;
     case LEFT_OFF_RIGHT_ON:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[SOFTWARE_UPDATE]); // This is fairly spammy, not all phones
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[SOFTWARE_UPDATE]); 
       break;
     case LEFT_FLASH_RIGHT_OFF:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS_GEN_2]); // TBD
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS_GEN_2]); 
       break;
     case LEFT_FLASH_RIGHT_FLASH:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[VISION_PRO]); // THis one affects very few devices, not as spammy (but kinda fun)
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[VISION_PRO]); 
       break;
     case LEFT_FLASH_RIGHT_ON:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS_MAX]); // TBD
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[AIRPODS_MAX]); 
       break;
     case LEFT_ON_RIGHT_OFF:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[APPLETV_SETUP]); // TBD
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[APPLETV_SETUP]); 
       break;
     case LEFT_ON_RIGHT_FLASH:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[TRANSFER_NUMBER]); // TBD
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[TRANSFER_NUMBER]); 
       break;
     case LEFT_ON_RIGHT_ON:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[APPLETV_PAIR]); // TBD
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[APPLETV_PAIR]); 
       break;
     default:
-      setAdvertisementData(oAdvertisementData, ALL_DEVICES[HOMEPOD_SETUP]); // TBD
+      setAdvertisementData(oAdvertisementData, ALL_DEVICES[HOMEPOD_SETUP]); 
       break;
   }
 
   int adv_type_choice = random(3);
   
-  // Robust NimBLE state stop with synchronization yield
-  if (pAdvertising->isAdvertising()) {
-    pAdvertising->stop();
-    delay(15); // Give the controller buffer time to clear
-  }
-
   if (adv_type_choice == 0){
     pAdvertising->setAdvertisementType(ADV_TYPE_IND);
   } else if (adv_type_choice == 1){
@@ -200,32 +191,25 @@ void loop() {
     pAdvertising->setAdvertisementType(ADV_TYPE_NONCONN_IND);
   }
 
+  // Update packet payload seamlessly without stopping the background stack
   pAdvertising->setAdvertisementData(oAdvertisementData);
-
-  // Start advertising safely
-  pAdvertising->start();
 
   digitalWrite(LEFT_LED,  shouldBeLitOff(stateTable[currentMode][0]) ? LOW : HIGH);
   digitalWrite(RIGHT_LED, shouldBeLitOff(stateTable[currentMode][1]) ? LOW : HIGH);
   
-  delay(delayMilliseconds); // delay for delayMilliseconds ms
-  
-  if (pAdvertising->isAdvertising()) {
-    pAdvertising->stop();
-    delay(15);
-  }
+  delay(delayMilliseconds); // Rotate payload every 100ms
 
-  // Random signal strength increases the difficulty of tracking the signal
-  int rand_val = random(100);  // Generate a random number between 0 and 99
-  if (rand_val < 70) {  // 70% probability
+  // Random signal strength variation
+  int rand_val = random(100);  
+  if (rand_val < 70) {  
       esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, MAX_TX_POWER);
-  } else if (rand_val < 85) {  // 15% probability
+  } else if (rand_val < 85) {  
       esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)(MAX_TX_POWER - 1));
-  } else if (rand_val < 95) {  // 10% probability
+  } else if (rand_val < 95) {  
       esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)(MAX_TX_POWER - 2));
-  } else if (rand_val < 99) {  // 4% probability
+  } else if (rand_val < 99) {  
       esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)(MAX_TX_POWER - 3));
-  } else {  // 1% probability
+  } else {  
       esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)(MAX_TX_POWER - 4));
   }
 }
