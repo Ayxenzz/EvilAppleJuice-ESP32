@@ -60,9 +60,6 @@ void setup() {
   // Create the BLE Server
   BLEServer *pServer = BLEDevice::createServer();
   pAdvertising = pServer->getAdvertising();
-
-  esp_bd_addr_t null_addr = {0xFE, 0xED, 0xC0, 0xFF, 0xEE, 0x69};
-  pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
 }
 
 void resetMode(){
@@ -113,15 +110,6 @@ void loop() {
     }
   }
 
-  // Generate fake random MAC matching original logic
-  esp_bd_addr_t dummy_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  for (int i = 0; i < 6; i++){
-    dummy_addr[i] = random(256);
-    if (i == 0){
-      dummy_addr[i] |= 0xF0;
-    }
-  }
-
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
 
   switch (currentMode){
@@ -166,8 +154,7 @@ void loop() {
     pAdvertising->setAdvertisementType(ADV_TYPE_NONCONN_IND);
   }
 
-  // Set the device address and advertisement data
-  pAdvertising->setDeviceAddress(dummy_addr, BLE_ADDR_TYPE_RANDOM);
+  // Set the advertisement data safely without address class errors
   pAdvertising->setAdvertisementData(oAdvertisementData);
   
   // Start advertising
