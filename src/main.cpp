@@ -21,13 +21,13 @@
 #define ADV_TYPE_NONCONN_IND 0x03
 #endif
 
-// Bluetooth maximum transmit power
+// Bluetooth maximum transmit power for ESP32-C5
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32S3)
-#define MAX_TX_POWER ESP_PWR_LVL_P21  // ESP32C3 ESP32C2 ESP32S3
+#define MAX_TX_POWER ESP_PWR_LVL_P21  
 #elif defined(CONFIG_IDF_TARGET_ESP32H2) || defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32C5)
-#define MAX_TX_POWER ESP_PWR_LVL_P20  // ESP32H2 ESP32C6 ESP32C5
+#define MAX_TX_POWER ESP_PWR_LVL_P20  
 #else
-#define MAX_TX_POWER ESP_PWR_LVL_P9   // Default
+#define MAX_TX_POWER ESP_PWR_LVL_P9   
 #endif
 
 BLEAdvertising *pAdvertising;  // global variable
@@ -36,25 +36,22 @@ uint32_t delayMilliseconds = 100;
 int currentMode = 0;
 Preferences preferences;
 
-// Boot button mapped to GPIO 28 (Standard ESP32-C5 DevKitC-1 onboard BOOT button)
+// Remapped for ESP32-C5 (Boot button on GPIO 28)
 const int BOOT_BUTTON_PIN = 28;
 const unsigned long LONG_PRESS_TIME = 1000; // 1 second
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Starting ESP32 BLE");
+  Serial.println("Starting ESP32-C5 BLE");
 
   // Open "storage" namespace (false = read/write)
   preferences.begin("my-app", false);
-
-  // Get the current mode, default to 0 if it doesn't exist
   currentMode = preferences.getInt("mode", 0);
   Serial.printf("Current Mode: %d\n", currentMode);
   preferences.end();
 
-  // Configure Boot Button pin with internal pullup
   pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
-
+  
   BLEDevice::init("AirPods 69");
 
   // Increase the BLE Power to MAX
@@ -64,8 +61,8 @@ void setup() {
   BLEServer *pServer = BLEDevice::createServer();
   pAdvertising = pServer->getAdvertising();
 
-  // Start continuous background advertising once in setup
-  pAdvertising->start();
+  esp_bd_addr_t null_addr = {0xFE, 0xED, 0xC0, 0xFF, 0xEE, 0x69};
+  pAdvertising->setDeviceAddress(null_addr, BLE_ADDR_TYPE_RANDOM);
 }
 
 void resetMode(){
@@ -95,7 +92,6 @@ void setAdvertisementData(BLEAdvertisementData &oAdvertisementData, const AppleD
 }
 
 void setRandomDeviceData(BLEAdvertisementData &oAdvertisementData) {
-  // Randomly pick data from one of the devices
   int idx = random(0, sizeof(ALL_DEVICES) / sizeof(ALL_DEVICES[0]));
   AppleDevice dev = ALL_DEVICES[idx];
   setAdvertisementData(oAdvertisementData, dev);
@@ -114,6 +110,15 @@ void loop() {
     } else {
       Serial.println("BOOT button short pressed!");
       nextMode();
+    }
+  }
+
+  // Generate fake random MAC matching original logic
+  esp_bd_addr_t dummy_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  for (int i = 0; i < 6; i++){
+    dummy_addr[i] = random(256);
+    if (i == 0){
+      dummy_addr[i] |= 0xF0;
     }
   }
 
@@ -151,9 +156,8 @@ void loop() {
       setAdvertisementData(oAdvertisementData, ALL_DEVICES[HOMEPOD_SETUP]); 
       break;
   }
-
-  int adv_type_choice = random(3);
   
+  int adv_type_choice = random(3);
   if (adv_type_choice == 0){
     pAdvertising->setAdvertisementType(ADV_TYPE_IND);
   } else if (adv_type_choice == 1){
@@ -162,10 +166,18 @@ void loop() {
     pAdvertising->setAdvertisementType(ADV_TYPE_NONCONN_IND);
   }
 
-  // Update packet payload seamlessly in continuous background mode
+  // Set the device address and advertisement data
+  pAdvertising->setDeviceAddress(dummy_addr, BLE_ADDR_TYPE_RANDOM);
   pAdvertising->setAdvertisementData(oAdvertisementData);
+  
+  // Start advertising
+  pAdvertising->start();
 
-  delay(delayMilliseconds); // Rotate payload every 100ms
+  delay(delayMilliseconds); // Broadcast window duration
+  
+  // Stop advertising with a small buffer delay to prevent state collision
+  pAdvertising->stop();
+  delay(5);
 
   // Random signal strength variation
   int rand_val = random(100);  
